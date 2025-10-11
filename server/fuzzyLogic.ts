@@ -37,15 +37,15 @@ function fuzzyMembership(value: number, low: number, medium: number, high: numbe
 export const fuzzyRules: FuzzyRule[] = [
   {
     id: "rule1",
-    condition: "Temperature HIGH AND Energy Usage HIGH",
-    action: "Reduce building A/C output by 15%",
+    condition: "Temperature MEDIUM-HIGH OR Energy Usage HIGH",
+    action: "Optimize A/C and cooling systems",
     evaluate: (data) => {
-      const temp = fuzzyMembership(data.temperature, 20, 28, 35);
-      const energy = fuzzyMembership(data.energy, 50, 75, 100);
+      const temp = fuzzyMembership(data.temperature, 15, 24, 32);
+      const energy = fuzzyMembership(data.energy, 40, 65, 90);
       
-      const confidence = Math.min(temp.high, energy.high) * 100;
+      const confidence = Math.max(temp.high * 0.7, energy.high, Math.min(temp.medium, energy.high)) * 100;
       return {
-        isActive: confidence > 50,
+        isActive: confidence > 20,
         confidence: Math.round(confidence)
       };
     },
@@ -64,16 +64,15 @@ export const fuzzyRules: FuzzyRule[] = [
   },
   {
     id: "rule2",
-    condition: "Pollution HIGH AND Traffic HIGH AND Wind LOW",
+    condition: "Pollution HIGH AND Traffic HIGH",
     action: "Activate air purifiers AND reroute traffic",
     evaluate: (data) => {
-      const pollution = fuzzyMembership(data.pm25, 30, 70, 120);
-      const traffic = fuzzyMembership(data.traffic, 30, 60, 90);
-      const wind = fuzzyMembership(data.windSpeed, 0, 5, 15);
+      const pollution = fuzzyMembership(data.pm25, 25, 50, 100);
+      const traffic = fuzzyMembership(data.traffic, 40, 65, 90);
       
-      const confidence = Math.min(pollution.high, traffic.high, wind.low) * 100;
+      const confidence = Math.min(pollution.high, traffic.high) * 100;
       return {
-        isActive: confidence > 50,
+        isActive: confidence > 25,
         confidence: Math.round(confidence)
       };
     },
@@ -98,15 +97,15 @@ export const fuzzyRules: FuzzyRule[] = [
   },
   {
     id: "rule3",
-    condition: "Temperature VERY HIGH AND Humidity HIGH",
+    condition: "Temperature HIGH AND Humidity HIGH",
     action: "Activate cooling mist in high-traffic areas",
     evaluate: (data) => {
-      const temp = fuzzyMembership(data.temperature, 20, 28, 35);
-      const humidity = fuzzyMembership(data.humidity, 40, 65, 85);
+      const temp = fuzzyMembership(data.temperature, 18, 26, 35);
+      const humidity = fuzzyMembership(data.humidity, 50, 70, 90);
       
       const confidence = Math.min(temp.high, humidity.high) * 100;
       return {
-        isActive: confidence > 60,
+        isActive: confidence > 35,
         confidence: Math.round(confidence)
       };
     },
@@ -125,15 +124,14 @@ export const fuzzyRules: FuzzyRule[] = [
   },
   {
     id: "rule4",
-    condition: "Water Usage HIGH AND Temperature HIGH",
+    condition: "Water Usage HIGH",
     action: "Optimize irrigation schedules",
     evaluate: (data) => {
-      const water = fuzzyMembership(data.water, 0.5, 1.5, 2.5);
-      const temp = fuzzyMembership(data.temperature, 20, 28, 35);
+      const water = fuzzyMembership(data.water, 0.6, 1.0, 1.8);
       
-      const confidence = Math.min(water.high, temp.high) * 100;
+      const confidence = water.high * 100;
       return {
-        isActive: confidence > 55,
+        isActive: confidence > 30,
         confidence: Math.round(confidence)
       };
     },
@@ -152,15 +150,14 @@ export const fuzzyRules: FuzzyRule[] = [
   },
   {
     id: "rule5",
-    condition: "Energy Usage CRITICAL AND Temperature HIGH",
-    action: "Emergency load balancing",
+    condition: "Energy Usage HIGH",
+    action: "Load balancing optimization",
     evaluate: (data) => {
-      const energy = fuzzyMembership(data.energy, 50, 75, 100);
-      const temp = fuzzyMembership(data.temperature, 20, 28, 35);
+      const energy = fuzzyMembership(data.energy, 50, 75, 95);
       
-      const confidence = Math.min(energy.high, temp.high) * 100;
+      const confidence = energy.high * 100;
       return {
-        isActive: confidence > 70,
+        isActive: confidence > 40,
         confidence: Math.round(confidence)
       };
     },
@@ -171,8 +168,94 @@ export const fuzzyRules: FuzzyRule[] = [
       return {
         id: `action_${Date.now()}`,
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        action: `Emergency load balancing activated in ${data.zone}`,
+        action: `Load balancing optimized in ${data.zone}`,
         type: "warning",
+        zone: data.zone
+      };
+    }
+  },
+  {
+    id: "rule6",
+    condition: "Temperature LOW AND Wind HIGH",
+    action: "Adjust ventilation systems",
+    evaluate: (data) => {
+      const temp = fuzzyMembership(data.temperature, 10, 20, 28);
+      const wind = fuzzyMembership(data.windSpeed, 5, 12, 20);
+      
+      const confidence = Math.min(temp.low, wind.high) * 100;
+      return {
+        isActive: confidence > 25,
+        confidence: Math.round(confidence)
+      };
+    },
+    execute: (data) => {
+      const eval_result = fuzzyRules[5].evaluate(data);
+      if (!eval_result.isActive) return null;
+      
+      return {
+        id: `action_${Date.now()}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        action: `Natural ventilation systems adjusted in ${data.zone}`,
+        type: "success",
+        zone: data.zone
+      };
+    }
+  },
+  {
+    id: "rule7",
+    condition: "Traffic MEDIUM-HIGH",
+    action: "Optimize traffic signals",
+    evaluate: (data) => {
+      const traffic = fuzzyMembership(data.traffic, 30, 60, 85);
+      
+      const confidence = Math.max(traffic.high, traffic.medium * 0.8) * 100;
+      return {
+        isActive: confidence > 25,
+        confidence: Math.round(confidence)
+      };
+    },
+    execute: (data) => {
+      const eval_result = fuzzyRules[6].evaluate(data);
+      if (!eval_result.isActive) return null;
+      
+      const actions = [
+        `Smart traffic lights synchronized in ${data.zone}`,
+        `Green wave corridors activated in ${data.zone}`,
+        `Real-time traffic optimization enabled in ${data.zone}`
+      ];
+      
+      return {
+        id: `action_${Date.now()}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        action: actions[Math.floor(Math.random() * actions.length)],
+        type: "info",
+        zone: data.zone
+      };
+    }
+  },
+  {
+    id: "rule8",
+    condition: "Humidity LOW AND Temperature HIGH",
+    action: "Activate humidification systems",
+    evaluate: (data) => {
+      const humidity = fuzzyMembership(data.humidity, 30, 50, 70);
+      const temp = fuzzyMembership(data.temperature, 20, 28, 36);
+      
+      const confidence = Math.min(humidity.low, temp.high) * 100;
+      return {
+        isActive: confidence > 30,
+        confidence: Math.round(confidence)
+      };
+    },
+    execute: (data) => {
+      const eval_result = fuzzyRules[7].evaluate(data);
+      if (!eval_result.isActive) return null;
+      
+      return {
+        id: `action_${Date.now()}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        action: `Humidification systems activated in ${data.zone}`,
+        type: "success",
         zone: data.zone
       };
     }

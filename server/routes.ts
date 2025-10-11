@@ -67,9 +67,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fuzzyRules = evaluateAllRules(currentData);
         const newActions = executeActiveRules(currentData);
 
-        newActions.forEach(action => {
-          controlActionsHistory.unshift(action);
-        });
+        // Debug: Log environmental data and active rules
+        const activeRules = fuzzyRules.filter(r => r.isActive);
+        if (activeRules.length > 0) {
+          console.log(`📊 Active rules: ${activeRules.map(r => r.id).join(', ')}`);
+        }
+
+        if (newActions.length > 0) {
+          console.log(`🎯 ${newActions.length} control action(s) triggered:`);
+          newActions.forEach(action => {
+            console.log(`   → ${action.action}`);
+            controlActionsHistory.unshift(action);
+          });
+        }
 
         if (controlActionsHistory.length > 20) {
           controlActionsHistory.splice(20);
