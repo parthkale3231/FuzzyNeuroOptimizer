@@ -213,6 +213,7 @@ export default function Dashboard() {
               <EnvironmentalMap 
                 userLocation={userLocation || undefined} 
                 onLocationChange={handleLocationUpdate}
+                zones={zones}
               />
             </div>
 

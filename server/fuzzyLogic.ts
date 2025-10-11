@@ -271,15 +271,21 @@ export function evaluateAllRules(data: EnvironmentalData) {
   }));
 }
 
+let actionCounter = 0;
+
 export function executeActiveRules(data: EnvironmentalData): ControlAction[] {
   const actions: ControlAction[] = [];
+  const baseTimestamp = Date.now();
   
   for (const rule of fuzzyRules) {
     const evaluation = rule.evaluate(data);
     if (evaluation.isActive) {
       const action = rule.execute(data);
       if (action) {
-        actions.push(action);
+        actions.push({
+          ...action,
+          id: `action_${baseTimestamp}_${actionCounter++}`
+        });
       }
     }
   }

@@ -33,6 +33,18 @@ export interface ZoneStatus {
   temperature: number;
   pollution: number;
   traffic: number;
+  latitude: number;
+  longitude: number;
+}
+
+export interface MonitoringPoint {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  status: "optimal" | "warning" | "critical";
+  temperature?: number;
+  pollution?: number;
 }
 
 export interface ChartDataPoint {

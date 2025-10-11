@@ -2,57 +2,83 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, MousePointer2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import type { MonitoringPoint } from "@shared/types";
 
-interface MapLocation {
-  lat: number;
-  lng: number;
-  name: string;
-  status: "optimal" | "warning" | "critical";
-}
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 interface EnvironmentalMapProps {
   userLocation?: { latitude: number; longitude: number };
   onLocationChange?: (lat: number, lng: number) => void;
+  zones?: Array<{ id: string; name: string; latitude: number; longitude: number; status: string; temperature: number; pollution: number }>;
 }
 
-export function EnvironmentalMap({ userLocation, onLocationChange }: EnvironmentalMapProps) {
-  const [locations] = useState<MapLocation[]>([
-    { lat: 0, lng: 0, name: "Monitoring Station 1", status: "optimal" },
-    { lat: 0.5, lng: 0.5, name: "Monitoring Station 2", status: "warning" },
-    { lat: -0.5, lng: 0.5, name: "Monitoring Station 3", status: "critical" },
-    { lat: 0.5, lng: -0.5, name: "Monitoring Station 4", status: "optimal" },
-  ]);
-  const [isSelecting, setIsSelecting] = useState(false);
+function LocationSelector({ onLocationSelect }: { onLocationSelect?: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (e) => {
+      if (onLocationSelect) {
+        onLocationSelect(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "optimal":
-        return "bg-primary";
-      case "warning":
-        return "bg-chart-3";
-      case "critical":
-        return "bg-destructive";
-      default:
-        return "bg-muted";
+export function EnvironmentalMap({ userLocation, onLocationChange, zones = [] }: EnvironmentalMapProps) {
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [monitoringPoints, setMonitoringPoints] = useState<MonitoringPoint[]>([]);
+
+  const center: [number, number] = userLocation 
+    ? [userLocation.latitude, userLocation.longitude]
+    : [51.5074, -0.1278];
+
+  useEffect(() => {
+    if (userLocation) {
+      const points: MonitoringPoint[] = zones.map(zone => ({
+        id: zone.id,
+        name: zone.name,
+        latitude: zone.latitude,
+        longitude: zone.longitude,
+        status: zone.status as "optimal" | "warning" | "critical",
+        temperature: zone.temperature,
+        pollution: zone.pollution
+      }));
+      setMonitoringPoints(points);
     }
+  }, [zones, userLocation]);
+
+  const getMarkerIcon = (status: string) => {
+    const color = status === "optimal" ? "#16a34a" : status === "warning" ? "#f59e0b" : "#dc2626";
+    
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
   };
 
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isSelecting || !onLocationChange) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    
-    const baseLat = userLocation?.latitude || 0;
-    const baseLng = userLocation?.longitude || 0;
-    
-    const newLat = baseLat + (y * -0.1);
-    const newLng = baseLng + (x * 0.1);
-    
-    onLocationChange(newLat, newLng);
-    setIsSelecting(false);
+  const userMarkerIcon = L.divIcon({
+    className: 'user-marker',
+    html: `<div style="position: relative;">
+      <div style="width: 16px; height: 16px; background-color: #2563eb; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3); animation: pulse 2s infinite;"></div>
+    </div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+
+  const handleLocationSelect = (lat: number, lng: number) => {
+    if (onLocationChange && isSelecting) {
+      onLocationChange(lat, lng);
+      setIsSelecting(false);
+    }
   };
 
   return (
@@ -61,7 +87,7 @@ export function EnvironmentalMap({ userLocation, onLocationChange }: Environment
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Environmental Monitoring Points
+            Environmental Monitoring Map
           </CardTitle>
           {onLocationChange && (
             <Button
@@ -78,51 +104,68 @@ export function EnvironmentalMap({ userLocation, onLocationChange }: Environment
         </div>
       </CardHeader>
       <CardContent>
-        <div
-          className={`relative bg-muted/30 rounded-md p-8 h-[300px] overflow-hidden ${
-            isSelecting ? "cursor-crosshair" : ""
-          }`}
-          onClick={handleMapClick}
-        >
-          <div className="absolute inset-0 grid grid-cols-6 grid-rows-6">
-            {Array.from({ length: 36 }).map((_, i) => (
-              <div key={i} className="border border-border/20" />
+        <div className={`rounded-md overflow-hidden ${isSelecting ? "cursor-crosshair" : ""}`}>
+          <MapContainer
+            center={center}
+            zoom={13}
+            style={{ height: "400px", width: "100%" }}
+            zoomControl={true}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            
+            {isSelecting && <LocationSelector onLocationSelect={handleLocationSelect} />}
+            
+            {userLocation && (
+              <Marker position={[userLocation.latitude, userLocation.longitude]} icon={userMarkerIcon}>
+                <Popup>
+                  <div className="text-sm">
+                    <strong>Your Location</strong>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+            
+            {monitoringPoints.map((point) => (
+              <Marker 
+                key={point.id} 
+                position={[point.latitude, point.longitude]}
+                icon={getMarkerIcon(point.status)}
+              >
+                <Popup>
+                  <div className="text-sm min-w-[150px]">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <strong>{point.name}</strong>
+                      <Badge 
+                        variant={point.status === "optimal" ? "default" : point.status === "critical" ? "destructive" : "secondary"}
+                        className="text-xs"
+                      >
+                        {point.status}
+                      </Badge>
+                    </div>
+                    {point.temperature !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        Temp: {point.temperature}°C
+                      </div>
+                    )}
+                    {point.pollution !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        PM2.5: {point.pollution}
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
             ))}
-          </div>
-
-          {userLocation && (
-            <div
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{
-                left: "50%",
-                top: "50%",
-              }}
-            >
-              <div className="relative">
-                <div className="absolute inset-0 bg-chart-2/20 rounded-full animate-ping" />
-                <MapPin className="h-6 w-6 text-chart-2 relative z-10" />
-                <Badge className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-xs">
-                  Your Location
-                </Badge>
-              </div>
-            </div>
-          )}
-
-          {locations.map((loc, idx) => (
-            <div
-              key={idx}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover-elevate rounded-full pointer-events-none"
-              style={{
-                left: `${50 + loc.lng * 30}%`,
-                top: `${50 + loc.lat * 30}%`,
-              }}
-            >
-              <div
-                className={`h-3 w-3 rounded-full ${getStatusColor(loc.status)} border-2 border-background`}
-                title={loc.name}
-              />
-            </div>
-          ))}
+          </MapContainer>
         </div>
         <div className="flex items-center gap-4 mt-4 flex-wrap">
           <div className="flex items-center gap-2">
@@ -137,8 +180,22 @@ export function EnvironmentalMap({ userLocation, onLocationChange }: Environment
             <div className="h-3 w-3 rounded-full bg-destructive" />
             <span className="text-xs text-muted-foreground">Critical</span>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-chart-2" />
+            <span className="text-xs text-muted-foreground">Your Location</span>
+          </div>
         </div>
       </CardContent>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+          }
+          50% {
+            box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+          }
+        }
+      `}</style>
     </Card>
   );
 }

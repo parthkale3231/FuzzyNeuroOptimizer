@@ -4,7 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { RealDataService } from "./realDataService";
 import { evaluateAllRules, executeActiveRules, type ControlAction } from "./fuzzyLogic";
-import type { DashboardState, ChartDataPoint } from "@shared/types";
+import type { DashboardState, ChartDataPoint, ZoneStatus } from "@shared/types";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -19,14 +19,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const pollutionHistory: ChartDataPoint[] = [];
   const energyHistory: ChartDataPoint[] = [];
 
-  const zones = [
-    { id: "1", name: "Sector 1", status: "optimal" as const, temperature: 24, pollution: 35, traffic: 45 },
-    { id: "2", name: "Sector 2", status: "optimal" as const, temperature: 25, pollution: 40, traffic: 50 },
-    { id: "3", name: "Sector 3", status: "warning" as const, temperature: 28, pollution: 75, traffic: 65 },
-    { id: "4", name: "Sector 4", status: "optimal" as const, temperature: 23, pollution: 30, traffic: 40 },
-    { id: "5", name: "Sector 5", status: "critical" as const, temperature: 32, pollution: 95, traffic: 85 },
-    { id: "6", name: "Sector 6", status: "warning" as const, temperature: 27, pollution: 68, traffic: 70 },
-  ];
+  function generateGPSBasedZones(centerLat: number, centerLng: number, count: number = 6): ZoneStatus[] {
+    const zones: ZoneStatus[] = [];
+    const radius = 0.05;
+    
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * 2 * Math.PI;
+      const distance = radius * (0.7 + Math.random() * 0.6);
+      const lat = centerLat + distance * Math.cos(angle);
+      const lng = centerLng + distance * Math.sin(angle);
+      
+      zones.push({
+        id: String(i + 1),
+        name: `Zone ${i + 1}`,
+        status: "optimal",
+        temperature: 25,
+        pollution: 35,
+        traffic: 45,
+        latitude: lat,
+        longitude: lng
+      });
+    }
+    
+    return zones;
+  }
+
+  let zones = generateGPSBasedZones(51.5074, -0.1278);
 
   function updateHistoricalData(data: any) {
     const now = new Date();
@@ -112,13 +130,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (data.type === 'updateLocation') {
           realDataService.setZone(data.zone || 'Unknown Location');
-          // Update location coordinates if provided
           if (data.latitude !== undefined && data.longitude !== undefined) {
             realDataService.setLocation(
               data.zone || 'Unknown Location',
               data.latitude,
               data.longitude
             );
+            zones = generateGPSBasedZones(data.latitude, data.longitude);
+            console.log(`🗺️  Regenerated zones around ${data.zone} (${data.latitude}, ${data.longitude})`);
           }
         }
         
