@@ -118,40 +118,6 @@ export function CityZoneMap({ zones }: CityZoneMapProps) {
             ))}
           </MapContainer>
         </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {zones.map((zone) => (
-            <div
-              key={zone.id}
-              className="p-3 rounded-md border transition-all"
-              data-testid={`zone-${zone.id}`}
-              style={{
-                borderColor: getStatusColor(zone.status),
-                backgroundColor: `${getStatusColor(zone.status)}10`,
-              }}
-            >
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <h4 className="font-semibold text-xs">{zone.name}</h4>
-                <Badge
-                  variant={zone.status === "optimal" ? "default" : zone.status === "critical" ? "destructive" : "secondary"}
-                  className="text-xs"
-                >
-                  {zone.status}
-                </Badge>
-              </div>
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Temp</span>
-                  <span className="font-mono">{zone.temperature}°C</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">PM2.5</span>
-                  <span className="font-mono">{zone.pollution}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </CardContent>
     </Card>
   );

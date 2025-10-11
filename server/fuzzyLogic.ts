@@ -284,7 +284,7 @@ export function executeActiveRules(data: EnvironmentalData): ControlAction[] {
       if (action) {
         actions.push({
           ...action,
-          id: `action_${baseTimestamp}_${actionCounter++}`
+          id: `action_${rule.id}_${baseTimestamp}_${actionCounter++}`
         });
       }
     }
