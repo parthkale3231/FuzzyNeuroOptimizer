@@ -16,8 +16,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const realDataService = new RealDataService("Unknown Location", 51.5074, -0.1278);
   const controlActionsHistory: ControlAction[] = [];
   
-  // Initialize with a few recent data points to have some chart data immediately
-  function initializeHistoricalData(minutes: number = 2): { 
+  // Initialize historical data with realistic past data points
+  function initializeHistoricalData(hours: number = 2): { 
     temperature: ChartDataPoint[], 
     pollution: ChartDataPoint[], 
     energy: ChartDataPoint[] 
@@ -26,14 +26,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const pollution: ChartDataPoint[] = [];
     const energy: ChartDataPoint[] = [];
     const now = new Date();
-    const totalPoints = Math.floor(minutes * 60 / 2); // One point every 2 seconds
+    const pointsPerHour = 30; // One point every 2 minutes
+    const totalPoints = hours * pointsPerHour;
     
     for (let i = totalPoints - 1; i >= 0; i--) {
-      const timestamp = new Date(now.getTime() - (i * 2 * 1000)); // Go back in 2-second intervals
+      const timestamp = new Date(now.getTime() - (i * 2 * 60 * 1000)); // Go back in 2-minute intervals
       const timeStr = timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       const hour = timestamp.getHours();
       
-      // Generate realistic temperature pattern
+      // Generate realistic temperature pattern (cooler at night, warmer during day)
       const baseTemp = 22;
       const tempVariation = Math.sin((hour - 6) * Math.PI / 12) * 5;
       const tempNoise = (Math.random() - 0.5) * 2;
@@ -42,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         value: Math.round((baseTemp + tempVariation + tempNoise) * 10) / 10 
       });
       
-      // Generate realistic pollution pattern
+      // Generate realistic pollution pattern (higher during rush hours)
       const basePollution = 45;
       const rushHourFactor = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 20 : 0;
       const pollutionNoise = (Math.random() - 0.5) * 10;
@@ -51,7 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         value: Math.round(basePollution + rushHourFactor + pollutionNoise) 
       });
       
-      // Generate realistic energy pattern
+      // Generate realistic energy pattern (higher in evening)
       const baseEnergy = 60;
       const energyVariation = (hour >= 18 && hour <= 23) ? 30 : (hour >= 8 && hour <= 17) ? 10 : -10;
       const energyNoise = (Math.random() - 0.5) * 5;
@@ -64,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { temperature, pollution, energy };
   }
   
-  const initialHistory = initializeHistoricalData(2); // Start with 2 minutes of data
+  const initialHistory = initializeHistoricalData(2);
   const temperatureHistory: ChartDataPoint[] = initialHistory.temperature;
   const pollutionHistory: ChartDataPoint[] = initialHistory.pollution;
   const energyHistory: ChartDataPoint[] = initialHistory.energy;
@@ -104,11 +105,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     pollutionHistory.push({ time: timeStr, value: Math.round(data.pm25) });
     energyHistory.push({ time: timeStr, value: Math.round(data.energy) });
 
-    // Keep last 60 points (2 hours of data at 2-second intervals)
-    const maxPoints = 60;
-    if (temperatureHistory.length > maxPoints) temperatureHistory.shift();
-    if (pollutionHistory.length > maxPoints) pollutionHistory.shift();
-    if (energyHistory.length > maxPoints) energyHistory.shift();
+    if (temperatureHistory.length > 24) temperatureHistory.shift();
+    if (pollutionHistory.length > 24) pollutionHistory.shift();
+    if (energyHistory.length > 24) energyHistory.shift();
   }
 
   function updateZones(data: any) {
