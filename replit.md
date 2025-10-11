@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 
 **Server Framework**: Express.js with TypeScript running in ESM module mode. The server handles both HTTP API routes and WebSocket connections on the same server instance.
 
-**Real-time Data Flow**: SensorSimulator class generates realistic environmental data with time-of-day patterns, traffic variations, and noise simulation. The fuzzy logic engine evaluates rules every 2 seconds and broadcasts updates to all connected WebSocket clients.
+**Real-time Data Flow**: RealDataService fetches real environmental data from Open-Meteo API (temperature, humidity, wind speed, air quality). Weather and air quality data are cached for 5 minutes to optimize API usage. Time-based patterns for traffic, energy, and water usage are calculated based on time of day. The fuzzy logic engine evaluates rules every 2 seconds and broadcasts updates to all connected WebSocket clients.
 
 **Fuzzy Logic Engine**: Implements fuzzy membership functions (low/medium/high) for environmental parameters. Rules are evaluated based on fuzzy logic principles with confidence scores, and active rules trigger automated control actions. The system uses AND/OR logic combinations to determine when to execute specific control strategies.
 
@@ -89,6 +89,8 @@ Preferred communication style: Simple, everyday language.
 - **Zod**: Schema validation with Drizzle integration via drizzle-zod
 
 ### Third-party APIs
+- **Open-Meteo Weather API**: Free real-time weather data (temperature, humidity, wind speed) without API key requirement
+- **Open-Meteo Air Quality API**: Free air quality data (PM2.5, carbon monoxide) without API key requirement
 - **OpenStreetMap Nominatim API**: Geocoding and reverse geocoding for location search and coordinate-to-address conversion
 - **Browser Geolocation API**: User location detection
 
