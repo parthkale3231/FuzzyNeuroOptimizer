@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { MapPin, Navigation, MousePointer2 } from "lucide-react";
+import { useState } from "react";
 
 interface MapLocation {
   lat: number;
@@ -12,15 +13,17 @@ interface MapLocation {
 
 interface EnvironmentalMapProps {
   userLocation?: { latitude: number; longitude: number };
+  onLocationChange?: (lat: number, lng: number) => void;
 }
 
-export function EnvironmentalMap({ userLocation }: EnvironmentalMapProps) {
+export function EnvironmentalMap({ userLocation, onLocationChange }: EnvironmentalMapProps) {
   const [locations] = useState<MapLocation[]>([
     { lat: 0, lng: 0, name: "Monitoring Station 1", status: "optimal" },
     { lat: 0.5, lng: 0.5, name: "Monitoring Station 2", status: "warning" },
     { lat: -0.5, lng: 0.5, name: "Monitoring Station 3", status: "critical" },
     { lat: 0.5, lng: -0.5, name: "Monitoring Station 4", status: "optimal" },
   ]);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -35,16 +38,52 @@ export function EnvironmentalMap({ userLocation }: EnvironmentalMapProps) {
     }
   };
 
+  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isSelecting || !onLocationChange) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    
+    const baseLat = userLocation?.latitude || 0;
+    const baseLng = userLocation?.longitude || 0;
+    
+    const newLat = baseLat + (y * -0.1);
+    const newLng = baseLng + (x * 0.1);
+    
+    onLocationChange(newLat, newLng);
+    setIsSelecting(false);
+  };
+
   return (
     <Card data-testid="card-environmental-map">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Navigation className="h-5 w-5" />
-          Environmental Monitoring Points
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Navigation className="h-5 w-5" />
+            Environmental Monitoring Points
+          </CardTitle>
+          {onLocationChange && (
+            <Button
+              variant={isSelecting ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsSelecting(!isSelecting)}
+              data-testid="button-select-location"
+              className="gap-2"
+            >
+              <MousePointer2 className="h-4 w-4" />
+              {isSelecting ? "Click on map" : "Select Location"}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="relative bg-muted/30 rounded-md p-8 h-[300px] overflow-hidden">
+        <div
+          className={`relative bg-muted/30 rounded-md p-8 h-[300px] overflow-hidden ${
+            isSelecting ? "cursor-crosshair" : ""
+          }`}
+          onClick={handleMapClick}
+        >
           <div className="absolute inset-0 grid grid-cols-6 grid-rows-6">
             {Array.from({ length: 36 }).map((_, i) => (
               <div key={i} className="border border-border/20" />
@@ -53,7 +92,7 @@ export function EnvironmentalMap({ userLocation }: EnvironmentalMapProps) {
 
           {userLocation && (
             <div
-              className="absolute transform -translate-x-1/2 -translate-y-1/2"
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
               style={{
                 left: "50%",
                 top: "50%",
@@ -72,7 +111,7 @@ export function EnvironmentalMap({ userLocation }: EnvironmentalMapProps) {
           {locations.map((loc, idx) => (
             <div
               key={idx}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover-elevate rounded-full"
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover-elevate rounded-full pointer-events-none"
               style={{
                 left: `${50 + loc.lng * 30}%`,
                 top: `${50 + loc.lat * 30}%`,

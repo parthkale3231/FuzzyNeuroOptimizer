@@ -7,34 +7,23 @@ import { CityZoneMap } from "@/components/CityZoneMap";
 import { StatsBanner } from "@/components/StatsBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LocationStatus } from "@/components/LocationStatus";
+import { LocationSearch } from "@/components/LocationSearch";
 import { EnvironmentalMap } from "@/components/EnvironmentalMap";
 import { Thermometer, Droplets, Wind, Car, Zap, Droplet } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | undefined>();
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.log("Location access denied:", error);
-        }
-      );
-    }
-  }, []);
+  const handleLocationUpdate = (latitude: number, longitude: number) => {
+    setUserLocation({ latitude, longitude });
+  };
 
   // todo: remove mock functionality
   const temperatureData = [
@@ -140,7 +129,17 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <LocationStatus />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <LocationStatus 
+            location={userLocation} 
+            onLocationUpdate={handleLocationUpdate}
+          />
+          <LocationSearch
+            onLocationSelect={(lat, lng, name) => {
+              handleLocationUpdate(lat, lng);
+            }}
+          />
+        </div>
         
         <StatsBanner />
 
@@ -229,7 +228,10 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <CityZoneMap zones={zones} />
-          <EnvironmentalMap userLocation={userLocation} />
+          <EnvironmentalMap 
+            userLocation={userLocation || undefined} 
+            onLocationChange={handleLocationUpdate}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

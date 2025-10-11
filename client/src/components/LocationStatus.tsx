@@ -12,10 +12,38 @@ interface LocationData {
   accuracy: number;
 }
 
-export function LocationStatus() {
+interface LocationStatusProps {
+  location?: { latitude: number; longitude: number } | null;
+  onLocationUpdate?: (lat: number, lng: number) => void;
+}
+
+export function LocationStatus({ location: externalLocation, onLocationUpdate }: LocationStatusProps) {
   const [location, setLocation] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchLocationName = async (lat: number, lng: number, accuracy: number = 0) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+      );
+      const data = await response.json();
+      
+      setLocation({
+        latitude: lat,
+        longitude: lng,
+        city: data.address?.city || data.address?.town || data.address?.village || "Unknown",
+        country: data.address?.country || "Unknown",
+        accuracy: Math.round(accuracy),
+      });
+    } catch (err) {
+      setLocation({
+        latitude: lat,
+        longitude: lng,
+        accuracy: Math.round(accuracy),
+      });
+    }
+  };
 
   const getLocation = () => {
     setLoading(true);
@@ -30,28 +58,10 @@ export function LocationStatus() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude, accuracy } = position.coords;
-        
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await response.json();
-          
-          setLocation({
-            latitude,
-            longitude,
-            city: data.address?.city || data.address?.town || data.address?.village || "Unknown",
-            country: data.address?.country || "Unknown",
-            accuracy: Math.round(accuracy),
-          });
-        } catch (err) {
-          setLocation({
-            latitude,
-            longitude,
-            accuracy: Math.round(accuracy),
-          });
+        await fetchLocationName(latitude, longitude, accuracy);
+        if (onLocationUpdate) {
+          onLocationUpdate(latitude, longitude);
         }
-        
         setLoading(false);
       },
       (err) => {
@@ -67,8 +77,15 @@ export function LocationStatus() {
   };
 
   useEffect(() => {
-    getLocation();
-  }, []);
+    if (externalLocation) {
+      setLoading(true);
+      fetchLocationName(externalLocation.latitude, externalLocation.longitude).then(() => {
+        setLoading(false);
+      });
+    } else {
+      getLocation();
+    }
+  }, [externalLocation]);
 
   return (
     <Card data-testid="card-location-status">
