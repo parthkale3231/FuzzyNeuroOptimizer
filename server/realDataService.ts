@@ -1,18 +1,22 @@
 import { EnvironmentalData } from "./fuzzyLogic";
 
-interface OpenMeteoWeatherResponse {
-  current: {
-    temperature_2m: number;
-    relative_humidity_2m: number;
-    wind_speed_10m: number;
+interface OpenWeatherResponse {
+  main: {
+    temp: number;
+    humidity: number;
+  };
+  wind: {
+    speed: number;
   };
 }
 
-interface OpenMeteoAirQualityResponse {
-  current: {
-    pm2_5: number;
-    carbon_monoxide: number;
-  };
+interface OpenWeatherAirPollutionResponse {
+  list: Array<{
+    components: {
+      pm2_5: number;
+      co: number;
+    };
+  }>;
 }
 
 export class RealDataService {
@@ -86,37 +90,52 @@ export class RealDataService {
         return this.updateTimeBasedMetrics(this.lastWeatherData);
       }
 
-      // Fetch weather data from Open-Meteo with all available parameters
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${this.latitude}&longitude=${this.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
-      
+      const apiKey = process.env.OPENWEATHER_API_KEY;
+      if (!apiKey) {
+        console.warn('⚠️  OPENWEATHER_API_KEY not found, using fallback data');
+        return this.getFallbackData();
+      }
+
+      // Fetch current weather from OpenWeather API
+      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${this.latitude}&lon=${this.longitude}&appid=${apiKey}&units=metric`;
       const weatherResponse = await fetch(weatherUrl);
       
       if (!weatherResponse.ok) {
-        throw new Error(`Weather API returned ${weatherResponse.status}`);
+        throw new Error(`OpenWeather API returned ${weatherResponse.status}`);
       }
       
-      const weatherData: OpenMeteoWeatherResponse = await weatherResponse.json();
+      const weatherData: OpenWeatherResponse = await weatherResponse.json();
+
+      // Fetch air pollution data from OpenWeather API
+      const pollutionUrl = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${this.latitude}&lon=${this.longitude}&appid=${apiKey}`;
+      const pollutionResponse = await fetch(pollutionUrl);
+      
+      let pm25 = 35; // Default fallback
+      let co = 0.4; // Default fallback (in mg/m³)
+      
+      if (pollutionResponse.ok) {
+        const pollutionData: OpenWeatherAirPollutionResponse = await pollutionResponse.json();
+        if (pollutionData.list && pollutionData.list.length > 0) {
+          pm25 = pollutionData.list[0].components.pm2_5 || 35;
+          co = pollutionData.list[0].components.co || 0.4; // CO in mg/m³
+        }
+      }
 
       // Calculate traffic based on time patterns
       const traffic = this.getTrafficPattern() * 60; // Base traffic level
 
-      // Estimate pollution based on location and traffic
-      // Urban areas tend to have higher pollution
-      const baselinePM25 = 35; // Baseline PM2.5 for moderate air quality
-      const pm25 = baselinePM25 * (1 + traffic / 150);
-
-      // Estimate CO2 based on urban activity
-      const co2 = Math.min(600, Math.max(350, 400 + traffic * 1.5));
+      // Convert CO from mg/m³ to ppm (approximate: 1 mg/m³ ≈ 0.873 ppm at 25°C)
+      const co2Estimate = Math.min(600, Math.max(350, 400 + (co * 0.873 * 100)));
 
       const environmentalData: EnvironmentalData = {
-        temperature: weatherData.current?.temperature_2m || 20,
-        humidity: weatherData.current?.relative_humidity_2m || 60,
+        temperature: weatherData.main?.temp || 20,
+        humidity: weatherData.main?.humidity || 60,
         pm25: Math.min(150, Math.max(10, pm25)),
-        co2: co2,
+        co2: co2Estimate,
         traffic: Math.min(100, Math.max(10, traffic)),
         energy: this.getEnergyPattern() * 70,
         water: this.getWaterPattern() * 1.2,
-        windSpeed: weatherData.current?.wind_speed_10m || 5,
+        windSpeed: weatherData.wind?.speed || 5,
         zone: this.zone
       };
 
@@ -124,11 +143,11 @@ export class RealDataService {
       this.lastWeatherData = environmentalData;
       this.lastFetchTime = now;
 
-      console.log(`✓ Fetched real weather data for ${this.zone}: ${environmentalData.temperature}°C, ${environmentalData.humidity}% humidity`);
+      console.log(`✓ Fetched OpenWeather data for ${this.zone}: ${environmentalData.temperature}°C, ${environmentalData.humidity}% humidity, PM2.5: ${Math.round(environmentalData.pm25)}`);
 
       return environmentalData;
     } catch (error) {
-      console.error('Error fetching real weather data:', error);
+      console.error('Error fetching OpenWeather data:', error);
       
       // Return fallback data if API fails
       return this.getFallbackData();
