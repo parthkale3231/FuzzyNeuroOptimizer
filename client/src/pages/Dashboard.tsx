@@ -6,15 +6,34 @@ import { ControlActionTimeline } from "@/components/ControlActionTimeline";
 import { CityZoneMap } from "@/components/CityZoneMap";
 import { StatsBanner } from "@/components/StatsBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LocationStatus } from "@/components/LocationStatus";
+import { EnvironmentalMap } from "@/components/EnvironmentalMap";
 import { Thermometer, Droplets, Wind, Car, Zap, Droplet } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | undefined>();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.log("Location access denied:", error);
+        }
+      );
+    }
   }, []);
 
   // todo: remove mock functionality
@@ -121,6 +140,8 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        <LocationStatus />
+        
         <StatsBanner />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -206,7 +227,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <CityZoneMap zones={zones} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CityZoneMap zones={zones} />
+          <EnvironmentalMap userLocation={userLocation} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
