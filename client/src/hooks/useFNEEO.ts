@@ -40,11 +40,13 @@ export function useFNEEO() {
     wsRef.current = ws;
   }, []);
 
-  const updateLocation = useCallback((zone: string) => {
+  const updateLocation = useCallback((zone: string, latitude?: number, longitude?: number) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'updateLocation',
-        zone
+        zone,
+        latitude,
+        longitude
       }));
     }
   }, []);

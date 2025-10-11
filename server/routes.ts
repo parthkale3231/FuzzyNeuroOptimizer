@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { SensorSimulator } from "./sensorSimulation";
+import { RealDataService } from "./realDataService";
 import { evaluateAllRules, executeActiveRules, type ControlAction } from "./fuzzyLogic";
 import type { DashboardState, ChartDataPoint } from "@shared/types";
 
@@ -13,7 +13,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     path: '/fneeo-ws'
   });
 
-  const simulator = new SensorSimulator("Sector 5");
+  const realDataService = new RealDataService("Unknown Location", 51.5074, -0.1278);
   const controlActionsHistory: ControlAction[] = [];
   const temperatureHistory: ChartDataPoint[] = [];
   const pollutionHistory: ChartDataPoint[] = [];
@@ -61,34 +61,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   wss.on('connection', (ws: WebSocket) => {
     console.log('Client connected to FNEEO system');
 
-    const interval = setInterval(() => {
-      const currentData = simulator.generateData();
-      const fuzzyRules = evaluateAllRules(currentData);
-      const newActions = executeActiveRules(currentData);
+    const interval = setInterval(async () => {
+      try {
+        const currentData = await realDataService.generateData();
+        const fuzzyRules = evaluateAllRules(currentData);
+        const newActions = executeActiveRules(currentData);
 
-      newActions.forEach(action => {
-        controlActionsHistory.unshift(action);
-      });
+        newActions.forEach(action => {
+          controlActionsHistory.unshift(action);
+        });
 
-      if (controlActionsHistory.length > 20) {
-        controlActionsHistory.splice(20);
-      }
+        if (controlActionsHistory.length > 20) {
+          controlActionsHistory.splice(20);
+        }
 
-      updateHistoricalData(currentData);
-      updateZones(currentData);
+        updateHistoricalData(currentData);
+        updateZones(currentData);
 
-      const state: DashboardState = {
-        currentData,
-        fuzzyRules,
-        controlActions: controlActionsHistory,
-        zones,
-        temperatureHistory: [...temperatureHistory],
-        pollutionHistory: [...pollutionHistory],
-        energyHistory: [...energyHistory]
-      };
+        const state: DashboardState = {
+          currentData,
+          fuzzyRules,
+          controlActions: controlActionsHistory,
+          zones,
+          temperatureHistory: [...temperatureHistory],
+          pollutionHistory: [...pollutionHistory],
+          energyHistory: [...energyHistory]
+        };
 
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(state));
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(state));
+        }
+      } catch (error) {
+        console.error('Error generating real data:', error);
       }
     }, 2000);
 
@@ -97,11 +101,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const data = JSON.parse(message.toString());
         
         if (data.type === 'updateLocation') {
-          simulator.setZone(data.zone || 'Unknown Location');
+          realDataService.setZone(data.zone || 'Unknown Location');
+          // Update location coordinates if provided
+          if (data.latitude !== undefined && data.longitude !== undefined) {
+            realDataService.setLocation(
+              data.zone || 'Unknown Location',
+              data.latitude,
+              data.longitude
+            );
+          }
         }
         
         if (data.type === 'updateConditions') {
-          simulator.updateBaseConditions(
+          realDataService.updateBaseConditions(
             data.temperature || 25,
             data.pollution || 45
           );

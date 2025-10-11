@@ -37,7 +37,7 @@ export default function Dashboard() {
         .then(data => {
           const city = data.address?.city || data.address?.town || data.address?.village || "Unknown";
           const country = data.address?.country || "";
-          updateLocation(`${city}, ${country}`);
+          updateLocation(`${city}, ${country}`, userLocation.latitude, userLocation.longitude);
         })
         .catch(err => console.error('Error fetching location name:', err));
     }
