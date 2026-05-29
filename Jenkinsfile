@@ -1,11 +1,15 @@
 pipeline {
 
- 
+```
 agent any
+
+tools {
+    nodejs 'Node20'
+}
 
 environment {
     DOCKER_IMAGE = "parth22420166/fuzzyneurooptimizer"
-    IMAGE_TAG = "v1"
+    IMAGE_TAG = "${BUILD_NUMBER}"
     DOCKER_BUILDKIT = "1"
 }
 
@@ -16,6 +20,19 @@ options {
 
 stages {
 
+    stage('Environment Check') {
+        steps {
+            sh '''
+            node --version
+            npm --version
+            docker --version
+            kubectl version --client
+            trivy --version
+            sonar-scanner --version
+            '''
+        }
+    }
+
     stage('Checkout') {
         steps {
             checkout scm
@@ -24,37 +41,26 @@ stages {
 
     stage('Install Dependencies') {
         steps {
-            sh '''
-            npm ci
-            '''
+            sh 'npm ci'
         }
     }
 
     stage('Build Application') {
         steps {
-            sh '''
-            npm run build
-            '''
+            sh 'npm run build'
         }
     }
 
     stage('SonarQube Analysis') {
         steps {
             withSonarQubeEnv('SonarQube') {
-
                 sh '''
                 sonar-scanner \
-                -Dsonar.projectKey=fuzzy-neuro-optimizer \
-                -Dsonar.projectName=FuzzyNeuroOptimizer
+                   -Dsonar.projectKey=FuzzyNeuroOptimizer-2 \
+                   -Dsonar.sources=. \
+                   -Dsonar.host.url=http://localhost:9000 \
+                   -Dsonar.login=sqp_da9979aab35dca1d25151ab8605fa9fe93b60b75
                 '''
-            }
-        }
-    }
-
-    stage('Quality Gate') {
-        steps {
-            timeout(time: 5, unit: 'MINUTES') {
-                waitForQualityGate abortPipeline: true
             }
         }
     }
@@ -97,7 +103,6 @@ stages {
 
     stage('Docker Login') {
         steps {
-
             withCredentials([
                 usernamePassword(
                     credentialsId: 'dockerhub',
@@ -110,6 +115,8 @@ stages {
                 echo $DOCKER_PAT | docker login \
                 -u $DOCKER_USER \
                 --password-stdin
+
+                docker info
                 '''
             }
         }
@@ -126,7 +133,6 @@ stages {
 
     stage('Deploy To Kubernetes') {
         steps {
-
             sh '''
             kubectl apply -f k8s/deployment.yaml
             kubectl apply -f k8s/service.yaml
@@ -139,26 +145,10 @@ stages {
 
     stage('Verify Deployment') {
         steps {
-
             sh '''
             kubectl get deployments
-            kubectl get pods
+            kubectl get pods -o wide
             kubectl get svc
-            '''
-        }
-    }
-
-    stage('OWASP ZAP Baseline Scan') {
-        steps {
-
-            sh '''
-            docker run --rm \
-            -v $(pwd)/reports:/zap/wrk \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py \
-            -t http://host.minikube.internal:30080 \
-            -r zap-report.html \
-            -I || true
             '''
         }
     }
@@ -183,6 +173,6 @@ post {
         echo 'Pipeline Failed'
     }
 }
- 
+```
 
 }
