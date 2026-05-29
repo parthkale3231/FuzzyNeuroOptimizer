@@ -11,3 +11,7 @@ terraform.tfstate.backup
 terraform.tfstate
 .terraform.lock.hcl
 .terraform.tfstate.lock.info
+.scannerwork
+zap.yaml
+minikube-linux-amd64
+helm-charts

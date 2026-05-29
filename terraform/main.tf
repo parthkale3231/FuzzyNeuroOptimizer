@@ -111,5 +111,5 @@ output "public_ip" {
 }
 
 output "ssh_command" {
-  value = "ssh -i my-key.pem ubuntu@${aws_instance.ubuntu_server.public_ip}"
+  value = "ssh -i my-key ubuntu@${aws_instance.ubuntu_server.public_ip}"
 }

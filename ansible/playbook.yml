@@ -4,10 +4,13 @@
 
   tasks:
 
-    - name: Update apt package cache
+    - name: Update apt cache
       apt:
         update_cache: yes
-        cache_valid_time: 3600
+      register: apt_result
+      retries: 5
+      delay: 30
+      until: apt_result is succeeded
 
     - name: Install required packages
       apt:
