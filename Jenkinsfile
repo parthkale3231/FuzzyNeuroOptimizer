@@ -2,10 +2,6 @@ pipeline {
 
 agent any
 
-tools {
-    nodejs 'Node20'
-}
-
 environment {
     DOCKER_IMAGE = "parth22420166/fuzzyneurooptimizer"
     IMAGE_TAG = "${BUILD_NUMBER}"
