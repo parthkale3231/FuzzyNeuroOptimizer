@@ -5,7 +5,7 @@ agent any
 environment {
     DOCKER_IMAGE = "parth22420166/fuzzyneurooptimizer"
     IMAGE_TAG = "${BUILD_NUMBER}"
-    DOCKER_BUILDKIT = "1"
+    
 }
 
 options {
