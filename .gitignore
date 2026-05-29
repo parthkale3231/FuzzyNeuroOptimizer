@@ -4,3 +4,9 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.terraform
+my-key
+my-key.pub
+terraform.tfstate.backup
+terraform.tfstate
+.terraform.lock.hcl
