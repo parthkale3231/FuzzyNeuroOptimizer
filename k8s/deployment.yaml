@@ -20,7 +20,7 @@ spec:
       containers:
       - name: fuzzy
 
-        image: parth22420166/fuzzyneurooptimizer:v1
+        image: parth22420166/fuzzyneurooptimizer:latest
 
         imagePullPolicy: Always
 
